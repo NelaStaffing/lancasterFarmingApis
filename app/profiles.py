@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Dict, Optional, Literal
+import tempfile
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,8 @@ PROFILE_FILE = os.getenv(
     "LOGO_PROFILES_PATH",
     os.path.join(os.path.dirname(__file__), "profiles.json"),
 )
+
+_FALLBACK_PROFILE_FILE = os.path.join(tempfile.gettempdir(), "profiles.json")
 
 
 class Profile(BaseModel):
@@ -50,22 +53,35 @@ class Profile(BaseModel):
 
 
 def load_profiles() -> Dict[str, dict]:
-    if not os.path.exists(PROFILE_FILE):
-        return {}
-    try:
-        with open(PROFILE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                return data
-            return {}
-    except Exception:
-        return {}
+    # Try primary path
+    try_paths = [PROFILE_FILE]
+    if PROFILE_FILE != _FALLBACK_PROFILE_FILE:
+        try_paths.append(_FALLBACK_PROFILE_FILE)
+    for p in try_paths:
+        try:
+            if os.path.exists(p):
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        return data
+        except Exception:
+            continue
+    return {}
 
 
 def save_profiles(data: Dict[str, dict]) -> None:
-    os.makedirs(os.path.dirname(PROFILE_FILE), exist_ok=True)
-    with open(PROFILE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    target = PROFILE_FILE
+    try:
+        os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+        with open(target, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return
+    except (PermissionError, OSError):
+        # Fall back to a writable temp location (not persistent across restarts)
+        alt = _FALLBACK_PROFILE_FILE
+        os.makedirs(os.path.dirname(alt) or ".", exist_ok=True)
+        with open(alt, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
 
 
 def get_profile(name: str) -> Optional[Profile]:
