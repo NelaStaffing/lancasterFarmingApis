@@ -1,0 +1,13 @@
+{
+  "p1": {
+    "name": "p1",
+    "mode": "edge",
+    "left_mul": -0.22,
+    "top_mul": -10.7,
+    "right_mul": 2.0,
+    "bottom_mul": 0.8,
+    "width_mul": 0.0,
+    "height_mul": 0.0,
+    "section_thickness": 3
+  }
+}
